@@ -30,11 +30,21 @@ async fn health_check_works() {
     assert_eq!(Some(0), response.content_length());
 }
 
+use zero2prod::configuration::get_configuration;
+use sqlx::{Connection,PgConnection};
+
 #[actix_rt::test]
 async fn subscribe_returns_200_if_valid_data() {
     let app_address = spawn_app();
     let client = reqwest::Client::new();
     let body = "name=test&email=test%40gmail.com";
+
+    let configuration = get_configuration().expect("wtf");
+    let connection_string = configuration.database.connection_string();
+
+    let mut connection = PgConnection::connect(&connection_string)
+    .await
+    .expect("failed to connect");
 
     let response = client
         .post(&format!("{}/subscriptions", &app_address))
@@ -45,6 +55,15 @@ async fn subscribe_returns_200_if_valid_data() {
         .expect("failed to send request");
 
     assert_eq!(200, response.status().as_u16());
+
+    let saved = sqlx::query!("select email, name from subscriptions;")
+    .fetch_one(&mut connection)
+    .await
+    .expect("query failed");
+
+
+    assert_eq!("test", saved.name);
+    assert_eq!("test@gmail.com", saved.email);
 }
 
 #[actix_rt::test]
