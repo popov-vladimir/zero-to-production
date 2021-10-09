@@ -1,8 +1,3 @@
-use actix_web::dev::Server;
-use actix_web::{web, App, HttpResponse, HttpServer,HttpRequest};
-use actix_web::http::{StatusCode};
-use actix_web::body::Body;
-use std::net::TcpListener;
 
 pub mod configuration;
 pub mod routes;

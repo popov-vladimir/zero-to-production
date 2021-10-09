@@ -1,26 +1,64 @@
+use sqlx::{PgConnection,Connection,Executor};
 use std::net::TcpListener;
+use uuid::Uuid;
 use zero2prod::startup::run;
+use zero2prod::configuration::DatabaseSettings;
 
-fn spawn_app() -> String {
+pub struct TestApp {
+    address: String,
+    db_pool: PgPool,
+}
+
+pub async fn configure_database(db_config: &DatabaseSettings) -> PgPool {
+    let connection_strin_wo_db = db_config.connection_string_without_db();
+    let mut connection = PgConnection::connect(&connection_strin_wo_db)
+        .await
+        .expect("failed to create connection");
+    let query = format!(r#"create database "{}";"#, &db_config.database_name);
+    println!("connection_strin_wo_db:q: {}", connection_strin_wo_db);
+    println!("query: {}", query);
+    connection.execute(&*query)
+    .await
+    .expect("failed to create database");
+
+    let pool = PgPool::connect(&db_config.connection_string())
+        .await
+        .expect("failed to connect");
+
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("failed to run migrations");
+
+    pool
+}
+
+async fn spawn_app() -> TestApp {
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
-    // We retrieve the port assigned to us by the OS
     let port = listener.local_addr().unwrap().port();
-    let server = run(listener).expect("Failed to bind address");
+    let database_name = Uuid::new_v4().to_string();
+
+    let mut config = get_configuration().expect("failed to get config");
+    config.database.database_name = database_name;
+    let pool = configure_database(&config.database).await;
+    let server = run(listener, pool.clone()).expect("Failed to bind address");
     let _ = tokio::spawn(server);
-    // We return the application address to the caller!
-    format!("http://127.0.0.1:{}", port)
+    TestApp {
+        address: format!("http://127.0.0.1:{}", port),
+        db_pool: pool,
+    }
 }
 
 #[actix_rt::test]
 async fn health_check_works() {
     // Arrange
-    let address = spawn_app();
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
 
     // Act
     let response = client
         // Use the returned application address
-        .get(&format!("{}/health_check", &address))
+        .get(&format!("{}/health_check", &app.address))
         .send()
         .await
         .expect("Failed to execute request.");
@@ -30,24 +68,17 @@ async fn health_check_works() {
     assert_eq!(Some(0), response.content_length());
 }
 
+use sqlx::PgPool;
 use zero2prod::configuration::get_configuration;
-use sqlx::{Connection,PgConnection};
 
 #[actix_rt::test]
 async fn subscribe_returns_200_if_valid_data() {
-    let app_address = spawn_app();
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
     let body = "name=test&email=test%40gmail.com";
 
-    let configuration = get_configuration().expect("wtf");
-    let connection_string = configuration.database.connection_string();
-
-    let mut connection = PgConnection::connect(&connection_string)
-    .await
-    .expect("failed to connect");
-
     let response = client
-        .post(&format!("{}/subscriptions", &app_address))
+        .post(&format!("{}/subscriptions", &app.address))
         .header("Content-type", "application/x-www-form-urlencoded")
         .body(body)
         .send()
@@ -57,10 +88,9 @@ async fn subscribe_returns_200_if_valid_data() {
     assert_eq!(200, response.status().as_u16());
 
     let saved = sqlx::query!("select email, name from subscriptions;")
-    .fetch_one(&mut connection)
-    .await
-    .expect("query failed");
-
+        .fetch_one(&app.db_pool)
+        .await
+        .expect("query failed");
 
     assert_eq!("test", saved.name);
     assert_eq!("test@gmail.com", saved.email);
@@ -68,7 +98,7 @@ async fn subscribe_returns_200_if_valid_data() {
 
 #[actix_rt::test]
 async fn subscribe_returns_400_if_missing_data() {
-    let app_address = spawn_app();
+    let app = spawn_app().await;
 
     let client = reqwest::Client::new();
 
@@ -79,9 +109,8 @@ async fn subscribe_returns_400_if_missing_data() {
     ];
 
     for (invalid_body, error_message) in test_cases {
-        
         let response = client
-            .post(&format!("{}/subscriptions", &app_address))
+            .post(&format!("{}/subscriptions", &app.address))
             .header("Content-type", "application/x-www-form-urlencoded")
             .body(invalid_body)
             .send()
