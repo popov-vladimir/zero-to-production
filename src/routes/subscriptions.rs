@@ -13,7 +13,6 @@ pub struct FormData {
 name = "Saving new subscriber details in the database",
 skip(form, pool),
 fields(
-request_id = % Uuid::new_v4(),
 subscriber_id = % form.email,
 subscriber_name = % form.name
 )
@@ -39,7 +38,6 @@ pub async fn insert_subscriber(form: &FormData, pool: &PgPool) -> Result<(), sql
 name = "Adding new subscriber",
 skip(form, pool),
 fields(
-request_id = % Uuid::new_v4(),
 subscriber_id = % form.email,
 subscriber_name = % form.name
 )
