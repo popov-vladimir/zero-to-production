@@ -1,8 +1,9 @@
-use sqlx::{PgConnection,Connection,Executor};
+use sqlx::{PgConnection, Connection, Executor};
 use std::net::TcpListener;
 use uuid::Uuid;
 use zero2prod::startup::run;
 use zero2prod::configuration::DatabaseSettings;
+use zero2prod::telemetry::*;
 
 pub struct TestApp {
     address: String,
@@ -18,8 +19,8 @@ pub async fn configure_database(db_config: &DatabaseSettings) -> PgPool {
     println!("connection_strin_wo_db:q: {}", connection_strin_wo_db);
     println!("query: {}", query);
     connection.execute(&*query)
-    .await
-    .expect("failed to create database");
+        .await
+        .expect("failed to create database");
 
     let pool = PgPool::connect(&db_config.connection_string())
         .await
@@ -33,7 +34,11 @@ pub async fn configure_database(db_config: &DatabaseSettings) -> PgPool {
     pool
 }
 
+static TRACING: Lazy<()> = Lazy::new(|| { init_subscriber(get_subscriber("test".into(), "trace".into())) });
+
 async fn spawn_app() -> TestApp {
+
+    Lazy::force(&TRACING);
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
     let database_name = Uuid::new_v4().to_string();
@@ -70,6 +75,8 @@ async fn health_check_works() {
 
 use sqlx::PgPool;
 use zero2prod::configuration::get_configuration;
+use zero2prod::telemetry::{init_subscriber, get_subscriber};
+use once_cell::sync::Lazy;
 
 #[actix_rt::test]
 async fn subscribe_returns_200_if_valid_data() {
