@@ -3,7 +3,6 @@ use std::net::TcpListener;
 use uuid::Uuid;
 use zero2prod::startup::run;
 use zero2prod::configuration::DatabaseSettings;
-use zero2prod::telemetry::*;
 
 pub struct TestApp {
     address: String,
@@ -34,10 +33,17 @@ pub async fn configure_database(db_config: &DatabaseSettings) -> PgPool {
     pool
 }
 
-static TRACING: Lazy<()> = Lazy::new(|| { init_subscriber(get_subscriber("test".into(), "trace".into())) });
+static TRACING: Lazy<()> = Lazy::new(|| {
+    if std::env::var("TEST_LOG").is_ok() {
+    init_subscriber(get_subscriber("test".into(), "info".into(),std::io::stdout))
+    } else
+    {
+        init_subscriber(get_subscriber("test".into(), "info".into(),std::io::sink))
+    }
+
+});
 
 async fn spawn_app() -> TestApp {
-
     Lazy::force(&TRACING);
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
