@@ -24,7 +24,7 @@ if [[ -z "${SKIP_DOCKER}" ]]; then
     postgres -N 1000
 fi
 
-export PGGASSWORD=${DB_PASSWORD}
+export PGPASSWORD=${DB_PASSWORD}
 
 until  psql -h "localhost" -U "${DB_USER}" -p "${DB_PORT}" -d "${DB_NAME}" -d postgres  -c '\q'
 do >&2 echo "postgres is not ready"

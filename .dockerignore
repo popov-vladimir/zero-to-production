@@ -1,1 +1,6 @@
 target
+migrations
+scripts
+Dockerfile
+.env
+tests
