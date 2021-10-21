@@ -17,17 +17,10 @@ async fn main() -> std::io::Result<()> {
     let address = format!("127.0.0.1:{}", configuration.application.port);
     let listener = TcpListener::bind(address)?;
 
-    let db = configuration.database;
-
     let pool = PgPoolOptions::new()
         .connect_timeout(Duration::from_secs(2))
-        .connect_with(PgConnectOptions::new()
-            .database(&db.database_name)
-            .username(&db.username)
-            .password(&db.password)
-            .host(&db.host)
-            .log_statements(Off)
-            .to_owned()).await
+        .connect_with(configuration.database.with_db())
+        .await
         .expect("failed to connect");
 
 

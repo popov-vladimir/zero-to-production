@@ -1,5 +1,9 @@
 // use config::Environment;
 use std::convert::{TryInto, TryFrom};
+use serde_aux::field_attributes::deserialize_number_from_string;
+use sqlx::postgres::PgConnectOptions;
+use sqlx::ConnectOptions;
+use log::LevelFilter::Off;
 
 #[derive(serde::Deserialize)]
 pub struct Settings {
@@ -9,6 +13,7 @@ pub struct Settings {
 
 #[derive(serde::Deserialize)]
 pub struct ApplicationSettings {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
 }
@@ -17,6 +22,7 @@ pub struct ApplicationSettings {
 pub struct DatabaseSettings {
     pub username: String,
     pub password: String,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
     pub database_name: String,
@@ -50,6 +56,19 @@ impl DatabaseSettings {
             "postgres://{}:{}@{}:{}/{}",
             self.username, self.password, self.host, self.port, self.database_name
         )
+    }
+    pub fn connect_without_db(&self) -> PgConnectOptions {
+        PgConnectOptions::new()
+            .host(&self.host)
+            .port(self.port)
+            .password(&self.password)
+            .username(&self.username)
+            .log_statements(Off)
+            .to_owned()
+    }
+    pub fn with_db(&self) -> PgConnectOptions {
+
+        self.connect_without_db().database(&self.database_name)
     }
     pub fn connection_string_without_db(&self) -> String {
         format!(
