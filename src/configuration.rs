@@ -4,7 +4,7 @@ use serde_aux::field_attributes::deserialize_number_from_string;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use sqlx::ConnectOptions;
 use log::LevelFilter::Off;
-
+use tracing::log;
 #[derive(serde::Deserialize)]
 pub struct Settings {
     pub database: DatabaseSettings,
@@ -18,7 +18,7 @@ pub struct ApplicationSettings {
     pub host: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, std::fmt::Debug)]
 pub struct DatabaseSettings {
     pub username: String,
     pub password: String,
@@ -43,6 +43,7 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .unwrap_or_else(|_| "local".into())
         .try_into()
         .expect("failed to parse environment");
+    tracing::debug!("the environment is {}", environment.as_str());
 
     settings.merge(config::File::from(configuration_directory.join(environment.as_str())).required(true)).expect("failed to apply env settings");
 
@@ -53,12 +54,17 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
 
 impl DatabaseSettings {
     pub fn connection_string(&self) -> String {
-        format!(
+
+        let result = format!(
             "postgres://{}:{}@{}:{}/{}",
             self.username, self.password, self.host, self.port, self.database_name
-        )
+        );
+        tracing::debug!("connection string is {}",result);
+        result
     }
     pub fn connect_without_db(&self) -> PgConnectOptions {
+
+        tracing::debug!("db settings {:?}",self);
         let ssl_mode = if self.require_ssl {
             PgSslMode::Require
         } else {

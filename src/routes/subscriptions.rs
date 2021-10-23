@@ -34,6 +34,26 @@ pub async fn insert_subscriber(form: &FormData, pool: &PgPool) -> Result<(), sql
     Ok(())
 }
 
+use unicode_segmentation::UnicodeSegmentation;
+
+pub fn is_valid_name(name: &str) -> bool {
+    let is_empty = name.trim().is_empty();
+
+    let too_long = name.graphemes(true).count() > 256;
+
+    let forbidden_characters = ['/', ')', '(', ';', '"'];
+
+    let contains_forbidden_characters = name
+        .chars()
+        .any(|c| { forbidden_characters.contains(&c) });
+    println!("name {} is_empty = {}, too_long = {}, contains_forbidden = {}",
+                     name,
+                     is_empty,
+                     too_long,
+                     contains_forbidden_characters);
+    is_empty || too_long || contains_forbidden_characters
+}
+
 #[tracing::instrument(
 name = "Adding new subscriber",
 skip(form, pool),
@@ -45,6 +65,9 @@ subscriber_name = % form.name
 pub async fn subscribe(form: web::Form<FormData>, pool: web::Data<PgPool>) -> HttpResponse {
     Uuid::new_v4().to_string();
 
+    if !is_valid_name(&form.name) {
+        return HttpResponse::BadRequest().finish();
+    }
     match insert_subscriber(&form, &pool).await
     {
         Ok(_) => {
