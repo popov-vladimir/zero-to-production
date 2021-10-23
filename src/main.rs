@@ -1,10 +1,8 @@
-use sqlx::{PgPool, ConnectOptions};
 use std::net::TcpListener;
 use zero2prod::configuration::get_configuration;
 use zero2prod::startup::run;
 use zero2prod::telemetry::*;
-use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use log::LevelFilter::{Off};
+use sqlx::postgres::{PgPoolOptions};
 use std::time::Duration;
 
 #[actix_web::main]
