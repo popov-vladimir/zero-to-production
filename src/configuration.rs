@@ -1,7 +1,7 @@
 // use config::Environment;
 use std::convert::{TryInto, TryFrom};
 use serde_aux::field_attributes::deserialize_number_from_string;
-use sqlx::postgres::PgConnectOptions;
+use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use sqlx::ConnectOptions;
 use log::LevelFilter::Off;
 
@@ -26,6 +26,7 @@ pub struct DatabaseSettings {
     pub port: u16,
     pub host: String,
     pub database_name: String,
+    pub require_ssl: bool,
 }
 
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
@@ -58,16 +59,22 @@ impl DatabaseSettings {
         )
     }
     pub fn connect_without_db(&self) -> PgConnectOptions {
+        let ssl_mode = if self.require_ssl {
+            PgSslMode::Require
+        } else {
+            PgSslMode::Prefer
+        };
+
         PgConnectOptions::new()
             .host(&self.host)
             .port(self.port)
             .password(&self.password)
             .username(&self.username)
+            .ssl_mode(ssl_mode)
             .log_statements(Off)
             .to_owned()
     }
     pub fn with_db(&self) -> PgConnectOptions {
-
         self.connect_without_db().database(&self.database_name)
     }
     pub fn connection_string_without_db(&self) -> String {
@@ -100,7 +107,7 @@ impl TryFrom<String> for Environment {
         match s.to_lowercase().as_str() {
             "local" => Ok(Self::Local),
             "production" => Ok(Self::Production),
-            _other => Err(format!("failed to parse {}",s))
+            _other => Err(format!("failed to parse {}", s))
         }
     }
 }
