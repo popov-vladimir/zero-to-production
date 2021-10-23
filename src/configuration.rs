@@ -39,7 +39,7 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     settings.merge(config::File::from(configuration_directory.join("base.yaml")).required(true))?;
 
 
-    let environment: Environment = std::env::var("APP_ENV")
+    let environment: Environment = std::env::var("APP_ENVIRONMENT")
         .unwrap_or_else(|_| "local".into())
         .try_into()
         .expect("failed to parse environment");
