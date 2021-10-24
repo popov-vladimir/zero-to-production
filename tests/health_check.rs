@@ -119,7 +119,7 @@ async fn subscribe_returns_400_if_missing_data() {
         ("email=test$%40gmail.com", "missing a name"),
         ("name=name", "missing and email"),
         ("", "missing both name and email"),
-        ("name=&email=test@test.com", "missing name")
+        ("name=\\\\&email=test@test.com", "missing name")
     ];
 
     for (invalid_body, error_message) in test_cases {

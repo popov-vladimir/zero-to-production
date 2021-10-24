@@ -11,19 +11,20 @@ pub struct FormData {
 
 #[tracing::instrument(
 name = "Saving new subscriber details in the database",
-skip(form, pool),
+skip(new_subscriber, pool),
 fields(
-subscriber_id = % form.email,
-subscriber_name = % form.name
+subscriber_id = % new_subscriber.email,
+subscriber_name = % new_subscriber.name.as_ref()
 )
 )]
-pub async fn insert_subscriber(form: &FormData, pool: &PgPool) -> Result<(), sqlx::Error> {
+pub async fn insert_subscriber(new_subscriber: &NewSubscriber, pool: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"insert into subscriptions(id, email, name, subscribed_at) values($1,$2,$3,$4)"#,
         Uuid::new_v4(),
-        form.email,
-        form.name,
+        new_subscriber.email,
+        new_subscriber.name.as_ref(),
         Utc::now()
+
     )
         .execute(pool)
         .await
@@ -34,25 +35,7 @@ pub async fn insert_subscriber(form: &FormData, pool: &PgPool) -> Result<(), sql
     Ok(())
 }
 
-use unicode_segmentation::UnicodeSegmentation;
-
-pub fn is_valid_name(name: &str) -> bool {
-    let is_empty = name.trim().is_empty();
-
-    let too_long = name.graphemes(true).count() > 256;
-
-    let forbidden_characters = ['/', ')', '(', ';', '"'];
-
-    let contains_forbidden_characters = name
-        .chars()
-        .any(|c| { forbidden_characters.contains(&c) });
-    println!("name {} is_empty = {}, too_long = {}, contains_forbidden = {}",
-                     name,
-                     is_empty,
-                     too_long,
-                     contains_forbidden_characters);
-    is_empty || too_long || contains_forbidden_characters
-}
+use crate::domain::{NewSubscriber, SubscriberName};
 
 #[tracing::instrument(
 name = "Adding new subscriber",
@@ -65,10 +48,11 @@ subscriber_name = % form.name
 pub async fn subscribe(form: web::Form<FormData>, pool: web::Data<PgPool>) -> HttpResponse {
     Uuid::new_v4().to_string();
 
-    if !is_valid_name(&form.name) {
-        return HttpResponse::BadRequest().finish();
-    }
-    match insert_subscriber(&form, &pool).await
+    let new_subscriber = NewSubscriber {
+        email: form.0.email,
+        name: SubscriberName::parse(form.0.name).expect("WTF!!!!"),
+    };
+    match insert_subscriber(&new_subscriber, &pool).await
     {
         Ok(_) => {
             HttpResponse::Ok().finish()
