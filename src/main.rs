@@ -21,6 +21,7 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("failed to connect");
 
+    tracing::debug!("connection to db was successful");
 
     run(listener, pool)?.await
 }

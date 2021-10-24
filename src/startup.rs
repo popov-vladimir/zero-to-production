@@ -9,6 +9,8 @@ pub fn run(listener: TcpListener, pool: PgPool) -> Result<Server, std::io::Error
 
     let pool = web::Data::new(pool);
     let server = HttpServer::new(move || {
+
+        tracing::debug!("starting the webserver");
         App::new()
             .wrap(TracingLogger::default())
             .route("/health_check", web::get().to(health_check))
