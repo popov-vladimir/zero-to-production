@@ -12,7 +12,7 @@ async fn main() -> std::io::Result<()> {
     init_subscriber(get_subscriber("zero2prod".into(), "trace".into(), std::io::stdout));
 
     let configuration = get_configuration().expect("failed to get configuration");
-    let address = format!("127.0.0.1:{}", configuration.application.port);
+    let address = format!("{}:{}", configuration.application.host, configuration.application.port);
     let listener = TcpListener::bind(address)?;
 
     let pool = PgPoolOptions::new()
