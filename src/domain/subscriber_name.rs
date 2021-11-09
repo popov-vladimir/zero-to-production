@@ -1,13 +1,7 @@
-#[derive(Debug)]
-pub struct SubscriberName(String);
-
-pub struct NewSubscriber {
-    pub name: SubscriberName,
-    pub email: String,
-}
-
 use unicode_segmentation::UnicodeSegmentation;
 
+#[derive(Debug)]
+pub struct SubscriberName(String);
 
 impl SubscriberName {
     pub fn parse(name: String) -> Result<SubscriberName, String> {
@@ -43,7 +37,7 @@ impl AsRef<str> for SubscriberName {
 #[cfg(test)]
 mod tests {
     use crate::domain::SubscriberName;
-    use claim::{assert_err, assert_ok};
+    // use claim::{assert_err, assert_ok};
 
     #[test]
     fn long_graphemes_got_rejected() {

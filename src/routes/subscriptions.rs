@@ -48,10 +48,17 @@ subscriber_name = % form.name
 pub async fn subscribe(form: web::Form<FormData>, pool: web::Data<PgPool>) -> HttpResponse {
     Uuid::new_v4().to_string();
 
-    let new_subscriber = NewSubscriber {
-        email: form.0.email,
-        name: SubscriberName::parse(form.0.name).expect("WTF!!!!"),
+    let name = match SubscriberName::parse(form.0.name)
+     {
+        Ok(name) => name,
+        Err(_) => return HttpResponse::BadRequest().finish()
     };
+
+    let new_subscriber: NewSubscriber = NewSubscriber {
+        email: form.0.email,
+        name,
+    };
+
     match insert_subscriber(&new_subscriber, &pool).await
     {
         Ok(_) => {
