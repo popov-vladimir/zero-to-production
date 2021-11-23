@@ -52,7 +52,7 @@ async fn spawn_app() -> TestApp {
     let mut config = get_configuration().expect("failed to get config");
     config.database.database_name = database_name;
     let pool = configure_database(&config.database).await;
-    let server = run(listener, pool.clone()).expect("Failed to bind address");
+    let server = run(listener, pool.clone(),EmailClient::new(config.email_client.base_url, SubscriberEmail::parse(config.email_client.sender_email).unwrap())).expect("Failed to bind address");
     let _ = tokio::spawn(server);
     TestApp {
         address: format!("http://127.0.0.1:{}", port),
@@ -83,6 +83,8 @@ use sqlx::PgPool;
 use zero2prod::configuration::get_configuration;
 use zero2prod::telemetry::{init_subscriber, get_subscriber};
 use once_cell::sync::Lazy;
+use zero2prod::email_client::EmailClient;
+use zero2prod::domain::SubscriberEmail;
 
 #[actix_rt::test]
 async fn subscribe_returns_200_if_valid_data() {
