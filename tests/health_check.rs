@@ -35,12 +35,10 @@ pub async fn configure_database(db_config: &DatabaseSettings) -> PgPool {
 
 static TRACING: Lazy<()> = Lazy::new(|| {
     if std::env::var("TEST_LOG").is_ok() {
-    init_subscriber(get_subscriber("test".into(), "info".into(),std::io::stdout))
-    } else
-    {
-        init_subscriber(get_subscriber("test".into(), "info".into(),std::io::sink))
+        init_subscriber(get_subscriber("test".into(), "info".into(), std::io::stdout))
+    } else {
+        init_subscriber(get_subscriber("test".into(), "info".into(), std::io::sink))
     }
-
 });
 
 async fn spawn_app() -> TestApp {
@@ -52,7 +50,12 @@ async fn spawn_app() -> TestApp {
     let mut config = get_configuration().expect("failed to get config");
     config.database.database_name = database_name;
     let pool = configure_database(&config.database).await;
-    let server = run(listener, pool.clone(),EmailClient::new(config.email_client.base_url, SubscriberEmail::parse(config.email_client.sender_email).unwrap())).expect("Failed to bind address");
+    let server = run(listener, pool.clone(),
+                     EmailClient::new(
+                         config.email_client.base_url,
+                         SubscriberEmail::parse(config.email_client.sender_email).unwrap(),
+                         config.email_client.authorization_token,
+                     )).expect("Failed to bind address");
     let _ = tokio::spawn(server);
     TestApp {
         address: format!("http://127.0.0.1:{}", port),

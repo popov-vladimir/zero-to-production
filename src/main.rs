@@ -24,6 +24,10 @@ async fn main() -> std::io::Result<()> {
 
     tracing::debug!("connection to db was successful");
 
-    let email_client = EmailClient::new(configuration.email_client.base_url,SubscriberEmail::parse(configuration.email_client.sender_email).unwrap());
+    let email_client = EmailClient::new(
+        configuration.email_client.base_url,
+        SubscriberEmail::parse(configuration.email_client.sender_email).unwrap(),
+        configuration.email_client.authorization_token
+    );
     run(listener, pool, email_client)?.await
 }
