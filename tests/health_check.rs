@@ -121,10 +121,10 @@ async fn subscribe_returns_400_if_missing_data() {
     let client = reqwest::Client::new();
 
     let test_cases = vec![
-        ("email=test$%40gmail.com", "missing a name"),
-        ("name=name", "missing and email"),
-        ("", "missing both name and email"),
-        ("name=\\\\&email=test@test.com", "missing name"),
+        // ("email=test$%40gmail.com", "missing a name"),
+        // ("name=name", "missing and email"),
+        // ("", "missing both name and email"),
+        // ("name=\\\\&email=test@test.com", "missing name"),
         ("name=valid_name&email=543", "bad email")
     ];
 

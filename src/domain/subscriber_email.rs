@@ -3,9 +3,17 @@ use validator::validate_email;
 #[derive(Debug)]
 pub struct SubscriberEmail(String);
 
+
 impl SubscriberEmail {
+
+    #[tracing::instrument(
+    name = "parsing email",
+    skip(),
+    fields(
+    subscriber_email = % s
+    )
+    )]
     pub fn parse(s: String) -> Result<SubscriberEmail, String> {
-        //TODO: implement
 
         if validate_email(&s) {
             Ok(Self(s))
@@ -43,7 +51,6 @@ mod tests {
     use fake::faker::internet::en::SafeEmail;
     use fake::Fake;
     use quickcheck::Gen;
-    use rand_core::Error;
 
     #[derive(Clone, Debug)]
     struct ValidEmailFixture(pub String);
@@ -57,7 +64,7 @@ mod tests {
     }
 
     #[quickcheck_macros::quickcheck]
-    fn valid_emails_are_parsed_successfully(valid_email:ValidEmailFixture) -> bool
+    fn valid_emails_are_parsed_successfully(valid_email: ValidEmailFixture) -> bool
     {
         SubscriberEmail::parse(valid_email.0).is_ok()
     }
