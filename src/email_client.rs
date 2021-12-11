@@ -60,10 +60,8 @@ impl EmailClient {
             .json(&request_body)
             .send()
             .await?
+            .error_for_status()?
             ;
-
-
-
         Ok(())
     }
 }
@@ -136,5 +134,70 @@ mod tests {
         let outcome = email_client.send_email(subscriber_email, &subject, &content, &content).await;
 
         assert!(outcome.is_ok())
+    }
+
+    use claim::*;
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn send_email_succeeds_if_server_returns_200() {
+        let mock_server = MockServer::start().await;
+        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let email_client = EmailClient::new(mock_server.uri(), sender, Faker.fake());
+
+        let subject: String = Sentence(1..3).fake();
+        let content: String = Paragraph(1..3).fake();
+
+        Mock::given(any())
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+        let outcome = email_client.send_email(subscriber_email, &subject, &content, &content).await;
+
+        assert_ok!(outcome)
+    }
+
+    #[tokio::test]
+    async fn send_email_fails_if_server_returns_500() {
+        let mock_server = MockServer::start().await;
+        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let email_client = EmailClient::new(mock_server.uri(), sender, Faker.fake());
+
+        let subject: String = Sentence(1..3).fake();
+        let content: String = Paragraph(1..3).fake();
+
+        Mock::given(any())
+            .respond_with(ResponseTemplate::new(500))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let outcome = email_client.send_email(subscriber_email, &subject, &content, &content).await;
+
+        assert_err!(outcome);
+    }
+
+    #[tokio::test]
+    async fn send_email_fails_if_server_returns_too_long() {
+        let mock_server = MockServer::start().await;
+        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let email_client = EmailClient::new(mock_server.uri(), sender, Faker.fake());
+
+        let subject: String = Sentence(1..3).fake();
+        let content: String = Paragraph(1..3).fake();
+
+        Mock::given(any())
+            .respond_with(ResponseTemplate::new(200).set_delay(Duration::from_secs(180)))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let outcome = email_client.send_email(subscriber_email, &subject, &content, &content).await;
+
+        assert_err!(outcome);
     }
 }

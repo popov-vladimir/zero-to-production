@@ -37,10 +37,10 @@ impl AsRef<str> for SubscriberName {
 #[cfg(test)]
 mod tests {
     use crate::domain::SubscriberName;
-    // use claim::{assert_err, assert_ok};
+    use claim::*;
 
     #[test]
     fn long_graphemes_got_rejected() {
-        claim::assert_err!(SubscriberName::parse("ы".repeat(257)));
+        assert_err!(SubscriberName::parse("ы".repeat(257)));
     }
 }
