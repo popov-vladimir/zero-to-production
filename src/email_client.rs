@@ -1,6 +1,7 @@
 use crate::domain::SubscriberEmail;
 
 use reqwest::Client;
+use std::time::Duration;
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -23,9 +24,16 @@ pub struct EmailClient {
 const TOKEN_HEADER_NAME: &'static str = "X-Postmark-Server-Token";
 
 impl EmailClient {
-    pub fn new(base_url: String, sender: SubscriberEmail, authorization_token: String) -> Self {
+    pub fn new(base_url: String,
+               sender: SubscriberEmail,
+               authorization_token: String,
+               timeout: Duration,
+    ) -> Self {
         Self {
-            http_client: Client::new(),
+            http_client: Client::builder()
+                .timeout(timeout)
+                .build()
+                .unwrap(),
             base_url,
             sender,
             authorization_token,
@@ -77,6 +85,24 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate, Request};
     use fake::faker::lorem::en::{Paragraph, Sentence};
 
+
+    fn subject() -> String {
+        Sentence(1..3).fake()
+    }
+
+    fn content() -> String {
+        Paragraph(1..2).fake()
+    }
+
+    fn email() -> SubscriberEmail {
+        SubscriberEmail::parse(SafeEmail().fake()).unwrap()
+    }
+
+    fn email_client(base_url: String) -> EmailClient {
+        let configuration = get_configuration().expect("failed to get configuration");
+        EmailClient::new(base_url, email(), Faker.fake(), configuration.email_client.timeout())
+    }
+
     struct SendEmailBodyMatcher;
 
     impl wiremock::Match for SendEmailBodyMatcher {
@@ -109,9 +135,9 @@ mod tests {
     async fn send_email_fires_a_request_to_base_url() {
         let mock_server = MockServer::start().await;
 
-        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let sender = email();
 
-        let email_client = EmailClient::new(mock_server.uri(), sender, Faker::fake(&Faker));
+        let email_client = email_client(mock_server.uri());
 
         Mock::given(header_exists(TOKEN_HEADER_NAME))
             .and(header("Content-type", "application/json"))
@@ -124,30 +150,32 @@ mod tests {
             .await;
 
 
-        let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let subscriber_email = email();
 
-        let subject: String = Sentence(1..2).fake();
-
-        let content: String = Paragraph(1..2).fake();
-
-
-        let outcome = email_client.send_email(subscriber_email, &subject, &content, &content).await;
+        let outcome = email_client.send_email(
+            subscriber_email,
+            &subject(),
+            &content(),
+            &content())
+            .await;
 
         assert!(outcome.is_ok())
     }
 
+
     use claim::*;
     use std::time::Duration;
+    use crate::configuration::get_configuration;
 
     #[tokio::test]
     async fn send_email_succeeds_if_server_returns_200() {
         let mock_server = MockServer::start().await;
-        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let email_client = EmailClient::new(mock_server.uri(), sender, Faker.fake());
+        let sender = email();
+        let subscriber_email = email();
+        let email_client = email_client(mock_server.uri());
 
-        let subject: String = Sentence(1..3).fake();
-        let content: String = Paragraph(1..3).fake();
+        let subject: String = subject();
+        let content: String = content();
 
         Mock::given(any())
             .respond_with(ResponseTemplate::new(200))
@@ -164,10 +192,10 @@ mod tests {
         let mock_server = MockServer::start().await;
         let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
         let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let email_client = EmailClient::new(mock_server.uri(), sender, Faker.fake());
+        let email_client = email_client(mock_server.uri());
 
-        let subject: String = Sentence(1..3).fake();
-        let content: String = Paragraph(1..3).fake();
+        let subject: String = subject();
+        let content: String = content();
 
         Mock::given(any())
             .respond_with(ResponseTemplate::new(500))
@@ -183,12 +211,12 @@ mod tests {
     #[tokio::test]
     async fn send_email_fails_if_server_returns_too_long() {
         let mock_server = MockServer::start().await;
-        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
-        let email_client = EmailClient::new(mock_server.uri(), sender, Faker.fake());
+        let sender = email();
+        let subscriber_email = email();
+        let email_client = email_client(mock_server.uri());
 
-        let subject: String = Sentence(1..3).fake();
-        let content: String = Paragraph(1..3).fake();
+        let subject: String = subject();
+        let content: String = content();
 
         Mock::given(any())
             .respond_with(ResponseTemplate::new(200).set_delay(Duration::from_secs(180)))

@@ -5,6 +5,8 @@ use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use sqlx::ConnectOptions;
 use log::LevelFilter::Off;
 use tracing::log;
+use std::time::Duration;
+
 #[derive(serde::Deserialize)]
 pub struct Settings {
     pub database: DatabaseSettings,
@@ -17,8 +19,16 @@ pub struct Settings {
 pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,
-    pub authorization_token: String
+    pub authorization_token: String,
+    timeout: u64,
 }
+
+impl EmailClientSettings {
+    pub fn timeout(&self) -> std::time::Duration {
+        Duration::from_millis(self.timeout)
+    }
+}
+
 #[derive(serde::Deserialize)]
 pub struct ApplicationSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
@@ -62,17 +72,15 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
 
 impl DatabaseSettings {
     pub fn connection_string(&self) -> String {
-
         let result = format!(
             "postgres://{}:{}@{}:{}/{}",
             self.username, self.password, self.host, self.port, self.database_name
         );
-        tracing::debug!("connection string is {}",result);
+        tracing::debug!("connection string is {}", result);
         result
     }
     pub fn connect_without_db(&self) -> PgConnectOptions {
-
-        tracing::debug!("db settings {:?}",self);
+        tracing::debug!("db settings {:?}", self);
         let ssl_mode = if self.require_ssl {
             PgSslMode::Require
         } else {
