@@ -2,11 +2,11 @@
 
 
 
-use sqlx::PgPool;
-use zero2prod::configuration::get_configuration;
-use zero2prod::telemetry::{init_subscriber, get_subscriber};
-use zero2prod::email_client::EmailClient;
-use zero2prod::domain::SubscriberEmail;
+
+
+
+
+
 use crate::helpers::spawn_app;
 
 #[actix_rt::test]

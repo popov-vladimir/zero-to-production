@@ -1,25 +1,22 @@
 use sqlx::{PgConnection, Connection, Executor, PgPool};
-use std::net::TcpListener;
 use uuid::Uuid;
-use zero2prod::startup::run;
+use zero2prod::startup::{get_connection_pool, Application};
 use zero2prod::configuration::{DatabaseSettings, get_configuration};
 use once_cell::sync::Lazy;
 use zero2prod::telemetry::{init_subscriber, get_subscriber};
-use zero2prod::email_client::EmailClient;
-use zero2prod::domain::SubscriberEmail;
 
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
 }
 
-pub async fn configure_database(db_config: &DatabaseSettings) -> PgPool {
+pub async fn configure_database(db_config: &DatabaseSettings) -> Result<(), std::io::Error> {
     let connection_strin_wo_db = db_config.connection_string_without_db();
     let mut connection = PgConnection::connect_with(&db_config.connect_without_db())
         .await
         .expect("failed to create connection");
     let query = format!(r#"create database "{}";"#, &db_config.database_name);
-    println!("connection_strin_wo_db:q: {}", connection_strin_wo_db);
+    println!("connection_string_wo_db {}", connection_strin_wo_db);
     println!("query: {}", query);
     connection.execute(&*query)
         .await
@@ -34,7 +31,7 @@ pub async fn configure_database(db_config: &DatabaseSettings) -> PgPool {
         .await
         .expect("failed to run migrations");
 
-    pool
+    Ok(())
 }
 
 static TRACING: Lazy<()> = Lazy::new(|| {
@@ -47,24 +44,18 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 
 pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
-    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
-    let port = listener.local_addr().unwrap().port();
-    let database_name = Uuid::new_v4().to_string();
-
-    let mut config = get_configuration().expect("failed to get config");
-    config.database.database_name = database_name;
-    let pool = configure_database(&config.database).await;
-    let timeout = config.email_client.timeout();
-    let server = run(listener, pool.clone(),
-                     EmailClient::new(
-                         config.email_client.base_url,
-                         SubscriberEmail::parse(config.email_client.sender_email).unwrap(),
-                         config.email_client.authorization_token,
-                         timeout
-                     )).expect("Failed to bind address");
-    let _ = tokio::spawn(server);
+    
+    let config = {
+        let mut c = get_configuration().expect("failed to get config");
+        c.database.database_name = Uuid::new_v4().to_string();
+        c.application.port = 0;
+        c
+    };
+    configure_database(&config.database).await.expect("failed to configure database");
+    let application = Application::build(config.clone()).await.unwrap();
+    let _ = tokio::spawn(application.server);
     TestApp {
-        address: format!("http://127.0.0.1:{}", port),
-        db_pool: pool,
+        address: format!("http://127.0.0.1:{}", application.port),
+        db_pool: get_connection_pool(config).await.unwrap(),
     }
 }

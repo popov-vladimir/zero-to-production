@@ -135,8 +135,6 @@ mod tests {
     async fn send_email_fires_a_request_to_base_url() {
         let mock_server = MockServer::start().await;
 
-        let sender = email();
-
         let email_client = email_client(mock_server.uri());
 
         Mock::given(header_exists(TOKEN_HEADER_NAME))
@@ -170,7 +168,6 @@ mod tests {
     #[tokio::test]
     async fn send_email_succeeds_if_server_returns_200() {
         let mock_server = MockServer::start().await;
-        let sender = email();
         let subscriber_email = email();
         let email_client = email_client(mock_server.uri());
 
@@ -190,7 +187,6 @@ mod tests {
     #[tokio::test]
     async fn send_email_fails_if_server_returns_500() {
         let mock_server = MockServer::start().await;
-        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
         let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
         let email_client = email_client(mock_server.uri());
 
@@ -211,7 +207,6 @@ mod tests {
     #[tokio::test]
     async fn send_email_fails_if_server_returns_too_long() {
         let mock_server = MockServer::start().await;
-        let sender = email();
         let subscriber_email = email();
         let email_client = email_client(mock_server.uri());
 
