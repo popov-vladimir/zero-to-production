@@ -46,7 +46,15 @@ impl Application {
             Self{ server: run(listener, pool, email_client)?, port }
         )
     }
-    
+
+    pub async fn run_untill_stopped(self) -> Result<(), std::io::Error> {
+        self.server.await
+
+    }
+
+    pub fn port(&self) -> u16 {
+        self.port
+    }
 }
 pub fn run(listener: TcpListener, pool: PgPool, email_client: EmailClient) -> Result<Server, std::io::Error> {
 
@@ -59,6 +67,7 @@ pub fn run(listener: TcpListener, pool: PgPool, email_client: EmailClient) -> Re
             .wrap(TracingLogger::default())
             .route("/health_check", web::get().to(health_check))
             .route("/subscriptions", web::post().to(subscribe))
+            .route("/confirm", web::get().to(confirm))
             .app_data(pool.clone())
             .app_data(email_client.clone())
     })
@@ -97,3 +106,4 @@ pub async fn build(configuration:Settings)-> Result<Server, std::io::Error> {
     );
     run(listener, pool, email_client)
 }
+
