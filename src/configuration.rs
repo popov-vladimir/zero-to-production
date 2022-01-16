@@ -1,21 +1,20 @@
 // use config::Environment;
-use std::convert::{TryInto, TryFrom};
+use log::LevelFilter::Off;
 use serde_aux::field_attributes::deserialize_number_from_string;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
 use sqlx::ConnectOptions;
-use log::LevelFilter::Off;
-use tracing::log;
+use std::convert::{TryFrom, TryInto};
 use std::time::Duration;
+use tracing::log;
 
-#[derive(serde::Deserialize,Clone)]
+#[derive(serde::Deserialize, Clone)]
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
     pub email_client: EmailClientSettings,
 }
 
-
-#[derive(serde::Deserialize,Clone)]
+#[derive(serde::Deserialize, Clone)]
 pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,
@@ -29,7 +28,7 @@ impl EmailClientSettings {
     }
 }
 
-#[derive(serde::Deserialize,Clone)]
+#[derive(serde::Deserialize, Clone)]
 pub struct ApplicationSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
@@ -56,15 +55,17 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
 
     settings.merge(config::File::from(configuration_directory.join("base.yaml")).required(true))?;
 
-
     let environment: Environment = std::env::var("APP_ENVIRONMENT")
         .unwrap_or_else(|_| "local".into())
         .try_into()
         .expect("failed to parse environment");
     tracing::debug!("the environment is {}", environment.as_str());
 
-    settings.merge(config::File::from(configuration_directory.join(environment.as_str())).required(true)).expect("failed to apply env settings");
-
+    settings
+        .merge(
+            config::File::from(configuration_directory.join(environment.as_str())).required(true),
+        )
+        .expect("failed to apply env settings");
 
     settings.merge(config::Environment::with_prefix("app").separator("__"))?;
     settings.try_into()
@@ -107,7 +108,6 @@ impl DatabaseSettings {
     }
 }
 
-
 pub enum Environment {
     Local,
     Production,
@@ -129,7 +129,7 @@ impl TryFrom<String> for Environment {
         match s.to_lowercase().as_str() {
             "local" => Ok(Self::Local),
             "production" => Ok(Self::Production),
-            _other => Err(format!("failed to parse {}", s))
+            _other => Err(format!("failed to parse {}", s)),
         }
     }
 }
