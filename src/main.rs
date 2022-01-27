@@ -31,5 +31,5 @@ async fn main() -> std::io::Result<()> {
         configuration.email_client.authorization_token,
         timeout
     );
-    run(listener, pool, email_client)?.await
+    run(listener, pool, email_client,configuration.application.base_url)?.await
 }

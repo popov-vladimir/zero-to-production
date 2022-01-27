@@ -40,7 +40,7 @@ pub async fn insert_subscriber(
 
 use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberName},
-    email_client::EmailClient,
+    email_client::EmailClient, startup::ApplicationBaseUrl,
 };
 
 use std::convert::{TryFrom, TryInto};
@@ -66,7 +66,7 @@ pub fn parse_subscriber(form: web::Form<FormData>) -> Result<NewSubscriber, Stri
 }
 #[tracing::instrument(
 name = "Adding new subscriber",
-skip(form, pool, email_client),
+skip(form, pool, email_client,base_url),
 fields(
 subscriber_id = % form.email,
 subscriber_name = % form.name
@@ -76,6 +76,7 @@ pub async fn subscribe(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
+    base_url: web::Data<ApplicationBaseUrl>
 ) -> HttpResponse {
     let new_subscriber: NewSubscriber = match form.0.try_into() {
         Ok(new_subscriber) => new_subscriber,
@@ -86,7 +87,7 @@ pub async fn subscribe(
         return HttpResponse::InternalServerError().finish();
     }
 
-    if send_confirmation_email(&email_client, new_subscriber)
+    if send_confirmation_email(&email_client, new_subscriber, &base_url.0)
         .await
         .is_err()
     {
@@ -103,8 +104,9 @@ pub async fn subscribe(
 pub async fn send_confirmation_email(
     email_client: &EmailClient,
     new_subscriber: NewSubscriber,
+    base_url: &str
 ) -> Result<(), reqwest::Error> {
-    let confirmation_link = "http://my-api.com/subscriptions/confirm";
+    let confirmation_link = format!("{}/subscriptions/confirm?subscription_token=my_token",base_url);
 
     let html_body = &format!(
         "Please, confirm your email <a href=\"{}\">here</a>",
