@@ -3,7 +3,7 @@ use wiremock::{
     Mock, ResponseTemplate,
 };
 
-use crate::helpers::spawn_app;
+use crate::helpers::{spawn_app, ConfirmationLink};
 
 #[actix_rt::test]
 async fn subscribe_returns_200_if_valid_data() {
@@ -62,21 +62,11 @@ async fn subscribe_sends_confirmation_email() {
 
     let email_request = &app.email_server.received_requests().await.unwrap()[0];
 
-    let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+    match app.get_confirmation_links(email_request) {
+        ConfirmationLink {html,plain_text} => assert_eq!(html, plain_text),
+    }
 
-    let get_link = |s: &str| {
-        let links: Vec<_> = linkify::LinkFinder::new()
-            .links(s)
-            .filter(|l| *l.kind() == linkify::LinkKind::Url)
-            .collect();
-        assert_eq!(links.len(), 1);
-        links[0].as_str().to_owned()
-    };
-
-    let html_link = get_link(&body["HtmlBody"].as_str().unwrap());
-    let text_link = get_link(&body["TextBody"].as_str().unwrap());
-
-    assert_eq!(html_link, text_link);
+    
 }
 
 #[actix_rt::test]

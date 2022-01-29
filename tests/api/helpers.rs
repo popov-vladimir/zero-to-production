@@ -1,4 +1,5 @@
 use once_cell::sync::Lazy;
+use reqwest::Url;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use wiremock::MockServer;
@@ -9,8 +10,12 @@ use zero2prod::telemetry::{get_subscriber, init_subscriber};
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
-    pub port : u16,
+    pub port: u16,
     pub email_server: MockServer,
+}
+pub struct ConfirmationLink {
+    pub html: reqwest::Url,
+    pub plain_text: reqwest::Url,
 }
 impl TestApp {
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
@@ -22,6 +27,29 @@ impl TestApp {
             .await
             .expect("failed to send request");
         response
+    }
+
+    pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLink {
+        let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+
+        let get_link = |s: &str| {
+            let links: Vec<_> = linkify::LinkFinder::new()
+                .links(s)
+                .filter(|l| *l.kind() == linkify::LinkKind::Url)
+                .collect();
+
+            assert_eq!(links.len(), 1);
+
+            let mut confirmation_link = Url::parse(links.get(0).unwrap().as_str()).unwrap();
+
+            confirmation_link.set_port(Some(self.port)).unwrap();
+            return confirmation_link;
+        };
+
+        ConfirmationLink {
+            html: get_link(body["HtmlBody"].as_str().unwrap()),
+            plain_text: (get_link(body["TextBody"].as_str().unwrap())),
+        }
     }
 }
 pub async fn configure_database(db_config: &DatabaseSettings) -> Result<(), std::io::Error> {
@@ -81,11 +109,11 @@ pub async fn spawn_app() -> TestApp {
     let address = format!("http://127.0.0.1:{}", application.port());
 
     let port = application.port();
-    
+
     let _ = tokio::spawn(application.run_untill_stopped());
 
     TestApp {
-    address,
+        address,
         db_pool: get_connection_pool(config).await.unwrap(),
         port,
         email_server,
