@@ -20,7 +20,7 @@ pub struct EmailClient {
     authorization_token: String,
 }
 
-const TOKEN_HEADER_NAME: str = "X-Postmark-Server-Token";
+const TOKEN_HEADER_NAME: &'static str = "X-Postmark-Server-Token";
 
 impl EmailClient {
     pub fn new(
