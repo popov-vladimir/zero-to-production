@@ -11,9 +11,7 @@ impl SubscriberName {
 
         let forbidden_characters = ['\\', '/', ')', '(', ';', '"'];
 
-        let contains_forbidden_characters = name
-            .chars()
-            .any(|c| { forbidden_characters.contains(&c) });
+        let contains_forbidden_characters = name.chars().any(|c| forbidden_characters.contains(&c));
         // println!("name {} is_empty = {}, too_long = {}, contains_forbidden = {}",
         //          name,
         //          is_empty,

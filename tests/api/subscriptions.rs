@@ -47,7 +47,6 @@ async fn subscribe_persist_valid_data() {
 #[actix_rt::test]
 async fn subscribe_sends_confirmation_email() {
     let app = spawn_app().await;
-    
 
     let body = "name=test&email=test%40gmail.com";
 
@@ -63,10 +62,8 @@ async fn subscribe_sends_confirmation_email() {
     let email_request = &app.email_server.received_requests().await.unwrap()[0];
 
     match app.get_confirmation_links(email_request) {
-        ConfirmationLink {html,plain_text} => assert_eq!(html, plain_text),
+        ConfirmationLink { html, plain_text } => assert_eq!(html, plain_text),
     }
-
-    
 }
 
 #[actix_rt::test]

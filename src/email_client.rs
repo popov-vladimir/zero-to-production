@@ -20,20 +20,17 @@ pub struct EmailClient {
     authorization_token: String,
 }
 
-
-const TOKEN_HEADER_NAME: &'static str = "X-Postmark-Server-Token";
+const TOKEN_HEADER_NAME: str = "X-Postmark-Server-Token";
 
 impl EmailClient {
-    pub fn new(base_url: String,
-               sender: SubscriberEmail,
-               authorization_token: String,
-               timeout: Duration,
+    pub fn new(
+        base_url: String,
+        sender: SubscriberEmail,
+        authorization_token: String,
+        timeout: Duration,
     ) -> Self {
         Self {
-            http_client: Client::builder()
-                .timeout(timeout)
-                .build()
-                .unwrap(),
+            http_client: Client::builder().timeout(timeout).build().unwrap(),
             base_url,
             sender,
             authorization_token,
@@ -47,7 +44,6 @@ impl EmailClient {
         html_body: &str,
         text_body: &str,
     ) -> Result<(), reqwest::Error> {
-
         // let url = format!("{}/email",self.base_url);
         let url = reqwest::Url::parse(&self.base_url)
             .unwrap()
@@ -62,29 +58,27 @@ impl EmailClient {
             text_body,
         };
 
-        let _builder = self.http_client
+        let _builder = self
+            .http_client
             .post(url)
             .header(TOKEN_HEADER_NAME, &self.authorization_token)
             .json(&request_body)
             .send()
             .await?
-            .error_for_status()?
-            ;
+            .error_for_status()?;
         Ok(())
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::domain::SubscriberEmail;
-    use fake::faker::internet::en::SafeEmail;
-    use fake::{Fake, Faker};
     use crate::email_client::{EmailClient, TOKEN_HEADER_NAME};
-    use wiremock::matchers::{any, header_exists, header, path, method};
-    use wiremock::{Mock, MockServer, ResponseTemplate, Request};
+    use fake::faker::internet::en::SafeEmail;
     use fake::faker::lorem::en::{Paragraph, Sentence};
-
+    use fake::{Fake, Faker};
+    use wiremock::matchers::{any, header, header_exists, method, path};
+    use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
     fn subject() -> String {
         Sentence(1..3).fake()
@@ -100,7 +94,12 @@ mod tests {
 
     fn email_client(base_url: String) -> EmailClient {
         let configuration = get_configuration().expect("failed to get configuration");
-        EmailClient::new(base_url, email(), Faker.fake(), configuration.email_client.timeout())
+        EmailClient::new(
+            base_url,
+            email(),
+            Faker.fake(),
+            configuration.email_client.timeout(),
+        )
     }
 
     struct SendEmailBodyMatcher;
@@ -109,15 +108,16 @@ mod tests {
         fn matches(&self, request: &Request) -> bool {
             let result: Result<serde_json::Value, _> = serde_json::from_slice(&request.body);
 
-
-            result.map(|v| {
-                dbg!(&v);
-                v.get("From").is_some() &
-                    v.get("To").is_some() &
-                    v.get("Subject").is_some() &
-                    v.get("HtmlBody").is_some() &
-                    v.get("TextBody").is_some()
-            }).unwrap_or(false)
+            result
+                .map(|v| {
+                    dbg!(&v);
+                    v.get("From").is_some()
+                        & v.get("To").is_some()
+                        & v.get("Subject").is_some()
+                        & v.get("HtmlBody").is_some()
+                        & v.get("TextBody").is_some()
+                })
+                .unwrap_or(false)
 
             // match result {
             //     Err(_) => false,
@@ -147,23 +147,18 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-
         let subscriber_email = email();
 
-        let outcome = email_client.send_email(
-            subscriber_email,
-            &subject(),
-            &content(),
-            &content())
+        let outcome = email_client
+            .send_email(subscriber_email, &subject(), &content(), &content())
             .await;
 
         assert!(outcome.is_ok())
     }
 
-
+    use crate::configuration::get_configuration;
     use claim::*;
     use std::time::Duration;
-    use crate::configuration::get_configuration;
 
     #[tokio::test]
     async fn send_email_succeeds_if_server_returns_200() {
@@ -179,7 +174,9 @@ mod tests {
             .expect(1)
             .mount(&mock_server)
             .await;
-        let outcome = email_client.send_email(subscriber_email, &subject, &content, &content).await;
+        let outcome = email_client
+            .send_email(subscriber_email, &subject, &content, &content)
+            .await;
 
         assert_ok!(outcome)
     }
@@ -199,7 +196,9 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let outcome = email_client.send_email(subscriber_email, &subject, &content, &content).await;
+        let outcome = email_client
+            .send_email(subscriber_email, &subject, &content, &content)
+            .await;
 
         assert_err!(outcome);
     }
@@ -219,7 +218,9 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let outcome = email_client.send_email(subscriber_email, &subject, &content, &content).await;
+        let outcome = email_client
+            .send_email(subscriber_email, &subject, &content, &content)
+            .await;
 
         assert_err!(outcome);
     }

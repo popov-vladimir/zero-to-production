@@ -34,14 +34,14 @@ async fn the_link_returned_by_subscribe_returns_200_if_called() {
 
     let confirmation_link = app.get_confirmation_links(email_request);
 
-    assert_eq!(confirmation_link.plain_text.host_str().unwrap(),"127.0.0.1");
+    assert_eq!(
+        confirmation_link.plain_text.host_str().unwrap(),
+        "127.0.0.1"
+    );
 
-    let response = reqwest::get(confirmation_link.plain_text)
-    .await
-    .unwrap();
+    let response = reqwest::get(confirmation_link.plain_text).await.unwrap();
 
-    assert_eq!(response.status().as_u16(),200);
-
+    assert_eq!(response.status().as_u16(), 200);
 }
 
 #[actix_rt::test]
@@ -62,21 +62,23 @@ async fn clicking_the_link_confirms_subscription() {
 
     let confirmation_link = app.get_confirmation_links(email_request);
 
-    assert_eq!(confirmation_link.plain_text.host_str().unwrap(),"127.0.0.1");
+    assert_eq!(
+        confirmation_link.plain_text.host_str().unwrap(),
+        "127.0.0.1"
+    );
 
-     reqwest::get(confirmation_link.plain_text)
-    .await
-    .unwrap()
-    .error_for_status()
-    .unwrap();
+    reqwest::get(confirmation_link.plain_text)
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap();
 
     let saved = sqlx::query!("SELECT email, name, status FROM subscriptions")
-    .fetch_one(&app.db_pool)
-    .await
-    .expect("Failed to fetch subscription status");
+        .fetch_one(&app.db_pool)
+        .await
+        .expect("Failed to fetch subscription status");
 
     assert_eq!(saved.name, "test");
     assert_eq!(saved.email, "test@gmail.com");
     assert_eq!(saved.status, "confirmed");
-
 }
