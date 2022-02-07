@@ -71,10 +71,10 @@ async fn subscribe_returns_400_if_missing_data() {
     let app = spawn_app().await;
 
     let test_cases = vec![
-        // ("email=test$%40gmail.com", "missing a name"),
-        // ("name=name", "missing and email"),
-        // ("", "missing both name and email"),
-        // ("name=\\\\&email=test@test.com", "missing name"),
+        ("email=test$%40gmail.com", "missing a name"),
+        ("name=name", "missing and email"),
+        ("", "missing both name and email"),
+        ("name=\\\\&email=test@test.com", "missing name"),
         ("name=valid_name&email=543", "bad email"),
     ];
 
@@ -88,4 +88,19 @@ async fn subscribe_returns_400_if_missing_data() {
             error_message
         )
     }
+}
+#[actix_rt::test]
+async fn subscribe_fails_if_database_is_invalid() {
+    let app = spawn_app().await;
+
+    sqlx::query(r#"ALTER TABLE subscription_tokens DROP COLUMN subscription_token;"#)
+        .execute(&app.db_pool)
+        .await
+        .unwrap();
+
+    let body = "name=test&email=test%40gmail.com";
+
+    let response = app.post_subscriptions(body.into()).await;
+
+    assert_eq!(500, response.status().as_u16(), "the API didn't fail as expected")
 }
